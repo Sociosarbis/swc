@@ -1,3 +1,4 @@
+use serde::Deserialize;
 use std::{iter, mem::replace};
 use swc_common::{util::take::Take, Mark, Span, Spanned, DUMMY_SP};
 use swc_ecma_ast::*;
@@ -31,17 +32,29 @@ use swc_ecma_visit::{
 ///   yield bar();
 /// });
 /// ```
-pub fn async_to_generator() -> impl Fold + VisitMut {
-    as_folder(AsyncToGenerator)
+pub fn async_to_generator(c: Config) -> impl Fold + VisitMut {
+    as_folder(AsyncToGenerator { c })
 }
 
 #[derive(Default, Clone)]
-struct AsyncToGenerator;
+struct AsyncToGenerator {
+    c: Config,
+}
+
+#[derive(Debug, Clone, Default, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Config {
+    #[serde(default)]
+    pub module: String,
+    #[serde(default)]
+    pub method: String,
+}
 
 struct Actual {
     in_object_prop: bool,
     in_prototype_assignment: bool,
     extra_stmts: Vec<Stmt>,
+    c: Config,
 }
 
 #[fast_path(ShouldWork)]
@@ -72,6 +85,7 @@ impl AsyncToGenerator {
                 in_object_prop: false,
                 in_prototype_assignment: false,
                 extra_stmts: vec![],
+                c: self.c.clone(),
             };
 
             stmt.visit_mut_with(&mut actual);
@@ -126,7 +140,7 @@ impl VisitMut for Actual {
 
         m.function.visit_mut_children_with(&mut folder);
 
-        let expr = make_fn_ref(
+        let expr = self.make_fn_ref(
             FnExpr {
                 ident: None,
                 function: m.function.take(),
@@ -300,13 +314,14 @@ impl VisitMut for Actual {
                 };
 
                 if !used_this {
-                    *expr = make_fn_ref(fn_expr, false);
+                    *expr = self.make_fn_ref(fn_expr, false);
                     return;
                 }
 
                 *expr = Expr::Call(CallExpr {
                     span: span.take(),
-                    callee: make_fn_ref(fn_expr, false)
+                    callee: self
+                        .make_fn_ref(fn_expr, false)
                         .make_member(quote_ident!("bind"))
                         .as_callee(),
                     args: vec![ThisExpr { span: DUMMY_SP }.as_arg()],
@@ -403,7 +418,7 @@ impl VisitMut for Actual {
         };
         prop.function.span = prop_method_body_span;
 
-        let fn_ref = make_fn_ref(
+        let fn_ref = self.make_fn_ref(
             FnExpr {
                 ident: None,
                 function: Function {
@@ -764,7 +779,7 @@ impl Actual {
             });
         }
 
-        let callee = make_fn_ref(
+        let callee = self.make_fn_ref(
             callee.take(),
             self.in_object_prop || self.in_prototype_assignment,
         );
@@ -807,7 +822,7 @@ impl Actual {
         let ident = raw_ident.clone().unwrap_or_else(|| quote_ident!("ref"));
 
         let real_fn_ident = private_ident!(ident.span, format!("_{}", ident.sym));
-        let right = make_fn_ref(
+        let right = self.make_fn_ref(
             FnExpr {
                 ident: None,
                 function: f.take(),
@@ -930,47 +945,46 @@ impl Actual {
             type_params: Default::default(),
         };
     }
-}
 
-/// Creates
-///
-/// `_asyncToGenerator(function*() {})` from `async function() {}`;
-fn make_fn_ref(mut expr: FnExpr, should_not_bind_this: bool) -> Expr {
-    expr.function.body.visit_mut_with(&mut AsyncFnBodyHandler {
-        is_async_generator: expr.function.is_generator,
-    });
+    /// Creates
+    ///
+    /// `_asyncToGenerator(function*() {})` from `async function() {}`;
 
-    assert!(expr.function.is_async);
-    expr.function.is_async = false;
-
-    let helper = if expr.function.is_generator {
-        helper!(wrap_async_generator, "wrapAsyncGenerator")
-    } else {
-        helper!(async_to_generator, "asyncToGenerator")
-    };
-
-    expr.function.is_generator = true;
-
-    let span = expr.span();
-
-    let should_bind_this = !should_not_bind_this && contains_this_expr(&expr.function.body);
-    let expr = if should_bind_this {
+    fn make_fn_ref(&mut self, mut expr: FnExpr, should_not_bind_this: bool) -> Expr {
+        expr.function.body.visit_mut_with(&mut AsyncFnBodyHandler {
+            is_async_generator: expr.function.is_generator,
+        });
+        assert!(expr.function.is_async);
+        expr.function.is_async = false;
+        let helper = if expr.function.is_generator {
+            helper!(wrap_async_generator, "wrapAsyncGenerator")
+        } else {
+            if !self.c.module.is_empty() {
+                ExprOrSuper::Expr(Box::new(Expr::Ident(quote_ident!(self.c.module.as_str()))))
+            } else {
+                helper!(async_to_generator, "asyncToGenerator")
+            }
+        };
+        expr.function.is_generator = true;
+        let span = expr.span();
+        let should_bind_this = !should_not_bind_this && contains_this_expr(&expr.function.body);
+        let expr = if should_bind_this {
+            Expr::Call(CallExpr {
+                span: DUMMY_SP,
+                callee: expr.make_member(quote_ident!("bind")).as_callee(),
+                args: vec![ThisExpr { span: DUMMY_SP }.as_arg()],
+                type_args: Default::default(),
+            })
+        } else {
+            Expr::Fn(expr)
+        };
         Expr::Call(CallExpr {
-            span: DUMMY_SP,
-            callee: expr.make_member(quote_ident!("bind")).as_callee(),
-            args: vec![ThisExpr { span: DUMMY_SP }.as_arg()],
+            span,
+            callee: helper,
+            args: vec![expr.as_arg()],
             type_args: Default::default(),
         })
-    } else {
-        Expr::Fn(expr)
-    };
-
-    Expr::Call(CallExpr {
-        span,
-        callee: helper,
-        args: vec![expr.as_arg()],
-        type_args: Default::default(),
-    })
+    }
 }
 
 struct AsyncFnBodyHandler {
