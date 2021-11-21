@@ -2,7 +2,7 @@ use crate::{
     config::{util::BoolOrObject, CompiledPaths, GlobalPassOption, JsMinifyOptions, ModuleConfig},
     SwcComments,
 };
-use compat::{es2015::regenerator, es2020::export_namespace_from};
+use compat::{es2015::regenerator, es2017::AsyncToGeneratorConfig, es2020::export_namespace_from};
 use either::Either;
 use std::{cell::RefCell, collections::HashMap, path::PathBuf, rc::Rc, sync::Arc};
 use swc_atoms::JsWord;
@@ -34,6 +34,7 @@ pub struct PassBuilder<'a, 'b, P: swc_ecma_visit::Fold> {
     fixer: bool,
     inject_helpers: bool,
     minify: Option<JsMinifyOptions>,
+    async_to_generator: AsyncToGeneratorConfig,
     regenerator: regenerator::Config,
 }
 
@@ -57,6 +58,7 @@ impl<'a, 'b, P: swc_ecma_visit::Fold> PassBuilder<'a, 'b, P> {
             fixer: true,
             inject_helpers: true,
             minify: None,
+            async_to_generator: Default::default(),
             regenerator: Default::default(),
         }
     }
@@ -78,6 +80,7 @@ impl<'a, 'b, P: swc_ecma_visit::Fold> PassBuilder<'a, 'b, P> {
             fixer: self.fixer,
             inject_helpers: self.inject_helpers,
             minify: self.minify,
+            async_to_generator: self.async_to_generator.clone(),
             regenerator: self.regenerator,
         }
     }
@@ -129,6 +132,11 @@ impl<'a, 'b, P: swc_ecma_visit::Fold> PassBuilder<'a, 'b, P> {
 
     pub fn preset_env(mut self, env: Option<swc_ecma_preset_env::Config>) -> Self {
         self.env = env;
+        self
+    }
+
+    pub fn async_to_generator(mut self, config: AsyncToGeneratorConfig) -> Self {
+        self.async_to_generator = config.clone();
         self
     }
 
@@ -211,7 +219,9 @@ impl<'a, 'b, P: swc_ecma_visit::Fold> PassBuilder<'a, 'b, P> {
                     should_enable(self.target, EsVersion::Es2018)
                 ),
                 Optional::new(
-                    compat::es2017(),
+                    compat::es2017(self.top_level_mark, compat::es2017::Config {
+                        async_to_generator: self.async_to_generator.clone()
+                    }),
                     should_enable(self.target, EsVersion::Es2017)
                 ),
                 Optional::new(

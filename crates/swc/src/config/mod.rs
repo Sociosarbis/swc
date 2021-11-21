@@ -49,7 +49,7 @@ use swc_ecma_transforms::{
     proposals::{decorators, export_default_from, import_assertions},
     react, resolver_with_mark, typescript,
 };
-use swc_ecma_transforms_compat::es2015::regenerator;
+use swc_ecma_transforms_compat::{ es2015::regenerator, es2017::AsyncToGeneratorConfig };
 use swc_ecma_transforms_optimization::{inline_globals2, GlobalExprMap};
 use swc_ecma_visit::Fold;
 
@@ -284,6 +284,8 @@ impl Options {
         let program = parse(syntax, target, is_module)?;
         let mut transform = transform.unwrap_or_default();
 
+        let async_to_generator = transform.async_to_generator.clone();
+
         let regenerator = transform.regenerator.clone();
 
         let preserve_comments = js_minify.as_ref().map(|v| v.format.comments.clone());
@@ -344,6 +346,7 @@ impl Options {
             })
             .fixer(!self.disable_fixer)
             .preset_env(config.env)
+            .async_to_generator(async_to_generator)
             .regenerator(regenerator)
             .finalize(
                 base_url,
@@ -1035,6 +1038,9 @@ pub struct TransformConfig {
 
     #[serde(default)]
     pub hidden: HiddenTransformConfig,
+
+    #[serde(default)]
+    pub async_to_generator: AsyncToGeneratorConfig,
 
     #[serde(default)]
     pub regenerator: regenerator::Config,

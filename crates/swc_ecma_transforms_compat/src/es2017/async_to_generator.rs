@@ -5,7 +5,8 @@ use swc_ecma_ast::*;
 use swc_ecma_transforms_base::{helper, perf::Check};
 use swc_ecma_transforms_macros::fast_path;
 use swc_ecma_utils::{
-    contains_ident_ref, contains_this_expr, private_ident, quote_ident, ExprFactory, StmtLike,
+    contains_ident_ref, contains_this_expr, prepend, private_ident, quote_ident, quote_str,
+    ExprFactory, StmtLike,
 };
 use swc_ecma_visit::{
     as_folder, noop_visit_mut_type, noop_visit_type, Fold, Node, Visit, VisitMut, VisitMutWith,
@@ -32,12 +33,24 @@ use swc_ecma_visit::{
 ///   yield bar();
 /// });
 /// ```
-pub fn async_to_generator(c: Config) -> impl Fold + VisitMut {
-    as_folder(AsyncToGenerator { c })
+pub fn async_to_generator(c: Config, top_level_mark: Mark) -> impl Fold + VisitMut {
+    as_folder(AsyncToGenerator {
+        async_to_generator_runtime: if c.use_custom_runtime() {
+            Some(private_ident!(format!("_{}", c.method)))
+        } else {
+            None
+        },
+        async_to_generator_used: false,
+        top_level_mark,
+        c,
+    })
 }
 
 #[derive(Default, Clone)]
 struct AsyncToGenerator {
+    async_to_generator_runtime: Option<Ident>,
+    async_to_generator_used: bool,
+    top_level_mark: Mark,
     c: Config,
 }
 
@@ -50,16 +63,38 @@ pub struct Config {
     pub method: String,
 }
 
+impl Config {
+    fn use_custom_runtime(&self) -> bool {
+        !(self.module.is_empty() || self.method.is_empty())
+    }
+}
+
 struct Actual {
     in_object_prop: bool,
     in_prototype_assignment: bool,
     extra_stmts: Vec<Stmt>,
-    c: Config,
+    async_to_generator_used: bool,
+    async_to_generator_runtime: Option<Ident>,
 }
 
 #[fast_path(ShouldWork)]
 impl VisitMut for AsyncToGenerator {
     noop_visit_mut_type!();
+
+    fn visit_mut_script(&mut self, m: &mut Script) {
+        m.visit_mut_children_with(self);
+
+        if self.async_to_generator_used {
+            prepend(&mut m.body, self.require_custom_rt());
+        }
+    }
+
+    fn visit_mut_module(&mut self, m: &mut Module) {
+        m.visit_mut_children_with(self);
+        if self.async_to_generator_used {
+            prepend(&mut m.body, self.import_custom_rt());
+        }
+    }
 
     fn visit_mut_module_items(&mut self, n: &mut Vec<ModuleItem>) {
         self.visit_mut_stmt_like(n);
@@ -85,15 +120,60 @@ impl AsyncToGenerator {
                 in_object_prop: false,
                 in_prototype_assignment: false,
                 extra_stmts: vec![],
-                c: self.c.clone(),
+                async_to_generator_used: false,
+                async_to_generator_runtime: self.async_to_generator_runtime.clone(),
             };
 
             stmt.visit_mut_with(&mut actual);
             stmts_updated.push(stmt);
             stmts_updated.extend(actual.extra_stmts.into_iter().map(T::from_stmt));
+            if actual.async_to_generator_used && !self.async_to_generator_used {
+                self.async_to_generator_used = true;
+            }
         }
 
         *stmts = stmts_updated;
+    }
+
+    fn require_custom_rt(&self) -> Stmt {
+        Stmt::Decl(Decl::Var(VarDecl {
+            span: DUMMY_SP,
+            kind: VarDeclKind::Var,
+            declare: false,
+            decls: vec![VarDeclarator {
+                span: DUMMY_SP,
+                name: Pat::Ident(self.async_to_generator_runtime.unwrap().into()),
+                init: Some(Box::new(Expr::Member(MemberExpr {
+                    span: DUMMY_SP,
+                    obj: ExprOrSuper::Expr(Box::new(Expr::Call(CallExpr {
+                        span: DUMMY_SP,
+                        callee: quote_ident!(DUMMY_SP.apply_mark(self.top_level_mark), "require")
+                            .as_callee(),
+                        args: vec![quote_str!(self.c.module).as_arg()],
+                        type_args: Default::default(),
+                    }))),
+                    prop: quote_ident!(self.c.method),
+                    computed: false,
+                }))),
+                definite: false,
+            }],
+        }))
+    }
+
+    fn import_custom_rt(&self) -> ModuleItem{
+        let specifier = ImportSpecifier::Named(ImportNamedSpecifier {
+            span: DUMMY_SP,
+            local: self.async_to_generator_runtime.unwrap(),
+            imported: quote_ident!(self.c.method),
+            is_type_only: false,
+        });
+        ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
+            span: DUMMY_SP,
+            specifiers: vec![specifier],
+            src: quote_str!(self.c.module),
+            type_only: Default::default(),
+            asserts: Default::default(),
+        }))
     }
 }
 
@@ -959,8 +1039,9 @@ impl Actual {
         let helper = if expr.function.is_generator {
             helper!(wrap_async_generator, "wrapAsyncGenerator")
         } else {
-            if !self.c.module.is_empty() {
-                ExprOrSuper::Expr(Box::new(Expr::Ident(quote_ident!(self.c.module.as_str()))))
+            self.async_to_generator_used = true;
+            if let Some(ident) = self.async_to_generator_runtime {
+                Expr::Ident(ident).as_callee()
             } else {
                 helper!(async_to_generator, "asyncToGenerator")
             }
