@@ -49,7 +49,7 @@ use swc_ecma_transforms::{
     proposals::{decorators, export_default_from, import_assertions},
     react, resolver_with_mark, typescript,
 };
-use swc_ecma_transforms_compat::{ es2015::regenerator, es2017::AsyncToGeneratorConfig };
+use swc_ecma_transforms_compat::{es2015::regenerator, es2017::AsyncToGeneratorConfig};
 use swc_ecma_transforms_optimization::{inline_globals2, GlobalExprMap};
 use swc_ecma_visit::Fold;
 

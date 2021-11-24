@@ -136,7 +136,17 @@ where
     );
 
     // ES2017
-    let pass = add!(pass, AsyncToGenerator, es2017::async_to_generator());
+    let pass = add!(
+        pass,
+        AsyncToGenerator,
+        es2017::async_to_generator(
+            es2017::AsyncToGeneratorConfig {
+                module: Default::default(),
+                method: Default::default()
+            },
+            global_mark
+        )
+    );
 
     // ES2016
     let pass = add!(pass, ExponentiationOperator, es2016::exponentation());

@@ -1,4 +1,4 @@
-pub use self::async_to_generator::{ async_to_generator, Config as AsyncToGeneratorConfig };
+pub use self::async_to_generator::{async_to_generator, Config as AsyncToGeneratorConfig};
 use serde::Deserialize;
 use swc_common::Mark;
 use swc_ecma_visit::Fold;

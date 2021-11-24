@@ -219,9 +219,12 @@ impl<'a, 'b, P: swc_ecma_visit::Fold> PassBuilder<'a, 'b, P> {
                     should_enable(self.target, EsVersion::Es2018)
                 ),
                 Optional::new(
-                    compat::es2017(self.top_level_mark, compat::es2017::Config {
-                        async_to_generator: self.async_to_generator.clone()
-                    }),
+                    compat::es2017(
+                        self.top_level_mark,
+                        compat::es2017::Config {
+                            async_to_generator: self.async_to_generator.clone()
+                        }
+                    ),
                     should_enable(self.target, EsVersion::Es2017)
                 ),
                 Optional::new(

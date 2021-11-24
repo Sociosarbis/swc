@@ -1,4 +1,4 @@
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::{iter, mem::replace};
 use swc_common::{util::take::Take, Mark, Span, Spanned, DUMMY_SP};
 use swc_ecma_ast::*;
@@ -54,7 +54,7 @@ struct AsyncToGenerator {
     c: Config,
 }
 
-#[derive(Debug, Clone, Default, Deserialize)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Config {
     #[serde(default)]
@@ -142,17 +142,17 @@ impl AsyncToGenerator {
             declare: false,
             decls: vec![VarDeclarator {
                 span: DUMMY_SP,
-                name: Pat::Ident(self.async_to_generator_runtime.unwrap().into()),
+                name: Pat::Ident(self.async_to_generator_runtime.to_owned().unwrap().into()),
                 init: Some(Box::new(Expr::Member(MemberExpr {
                     span: DUMMY_SP,
                     obj: ExprOrSuper::Expr(Box::new(Expr::Call(CallExpr {
                         span: DUMMY_SP,
                         callee: quote_ident!(DUMMY_SP.apply_mark(self.top_level_mark), "require")
                             .as_callee(),
-                        args: vec![quote_str!(self.c.module).as_arg()],
+                        args: vec![quote_str!(self.c.module.to_owned()).as_arg()],
                         type_args: Default::default(),
                     }))),
-                    prop: quote_ident!(self.c.method),
+                    prop: Box::new(Expr::Ident(quote_ident!(self.c.method.to_owned()))),
                     computed: false,
                 }))),
                 definite: false,
@@ -160,17 +160,17 @@ impl AsyncToGenerator {
         }))
     }
 
-    fn import_custom_rt(&self) -> ModuleItem{
+    fn import_custom_rt(&self) -> ModuleItem {
         let specifier = ImportSpecifier::Named(ImportNamedSpecifier {
             span: DUMMY_SP,
-            local: self.async_to_generator_runtime.unwrap(),
-            imported: quote_ident!(self.c.method),
+            local: self.async_to_generator_runtime.to_owned().unwrap(),
+            imported: Some(quote_ident!(self.c.method.to_owned())),
             is_type_only: false,
         });
         ModuleItem::ModuleDecl(ModuleDecl::Import(ImportDecl {
             span: DUMMY_SP,
             specifiers: vec![specifier],
-            src: quote_str!(self.c.module),
+            src: quote_str!(self.c.module.to_owned()),
             type_only: Default::default(),
             asserts: Default::default(),
         }))
@@ -1040,8 +1040,8 @@ impl Actual {
             helper!(wrap_async_generator, "wrapAsyncGenerator")
         } else {
             self.async_to_generator_used = true;
-            if let Some(ident) = self.async_to_generator_runtime {
-                Expr::Ident(ident).as_callee()
+            if let Some(ident) = &self.async_to_generator_runtime {
+                Expr::Ident(ident.to_owned()).as_callee()
             } else {
                 helper!(async_to_generator, "asyncToGenerator")
             }
