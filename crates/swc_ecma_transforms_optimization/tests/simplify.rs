@@ -537,19 +537,16 @@ test!(
     }),
     |t| {
         let scope = Rc::new(RefCell::new(Scope::default()));
+        let mark = Mark::fresh(Mark::root());
         chain!(
             strip(),
             decorators(Default::default()),
             class_properties(class_properties::Config { loose: false }),
             simplifier(Default::default()),
             es2018(Default::default()),
-            es2017(),
+            es2017(mark, Default::default()),
             es2016(),
-            es2015(
-                Mark::fresh(Mark::root()),
-                Some(t.comments.clone()),
-                Default::default()
-            ),
+            es2015(mark, Some(t.comments.clone()), Default::default()),
             es3(true),
             import_analyzer(Rc::clone(&scope)),
             inject_helpers(),

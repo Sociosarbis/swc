@@ -1,4 +1,4 @@
-use swc_common::chain;
+use swc_common::{chain, Mark};
 use swc_ecma_parser::Syntax;
 use swc_ecma_transforms_base::resolver::resolver;
 use swc_ecma_transforms_compat::{
@@ -1511,7 +1511,11 @@ test!(
     // See https://github.com/swc-project/swc/issues/490
     ignore,
     syntax(),
-    |_| chain!(async_to_generator(), arrow(), parameters(),),
+    |_| chain!(
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+        arrow(),
+        parameters(),
+    ),
     parameters_rest_async_arrow_functions_1,
     r#"
 var concat = async (...arrs) => {
@@ -1538,7 +1542,11 @@ test!(
     // See https://github.com/swc-project/swc/issues/490
     ignore,
     syntax(),
-    |_| chain!(async_to_generator(), arrow(), parameters(),),
+    |_| chain!(
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+        arrow(),
+        parameters(),
+    ),
     parameters_rest_async_arrow_functions_2,
     r#"
 var x = async (...rest) => {

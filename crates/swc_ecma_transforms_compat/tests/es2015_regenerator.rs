@@ -927,15 +927,14 @@ expect(v.next()).toEqual({ done: true });
 
 test_exec!(
     syntax(),
-    |t| chain!(
-        es2017(),
-        es2016(),
-        es2015(
-            Mark::fresh(Mark::root()),
-            Some(t.comments.clone()),
-            Default::default()
-        ),
-    ),
+    |t| {
+        let mark = Mark::fresh(Mark::root());
+        chain!(
+            es2017(mark, Default::default()),
+            es2016(),
+            es2015(mark, Some(t.comments.clone()), Default::default()),
+        )
+    },
     issue_600_full,
     "async function foo(b) {
 	    for (let a of b) {
@@ -946,11 +945,14 @@ test_exec!(
 
 test_exec!(
     syntax(),
-    |_| chain!(
-        async_to_generator(),
-        es2015::for_of(Default::default()),
-        es2015::regenerator(Default::default(), Mark::fresh(Mark::root())),
-    ),
+    |_| {
+        let mark = Mark::fresh(Mark::root());
+        chain!(
+            async_to_generator(Default::default(), mark),
+            es2015::for_of(Default::default()),
+            es2015::regenerator(Default::default(), Mark::fresh(Mark::root())),
+        )
+    },
     issue_600_exact_passes,
     "async function foo(b) {
 	    for (let a of b) {
@@ -1072,7 +1074,10 @@ expect(v.next()).toEqual({ done: false, value: 'Error'});
 
 test_exec!(
     Syntax::default(),
-    |_| chain!(async_to_generator(), tr(())),
+    |_| chain!(
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+        tr(())
+    ),
     issue_1036_1,
     "
     const x = async function() {
@@ -1155,7 +1160,10 @@ test_exec!(
 
 test_exec!(
     Syntax::default(),
-    |_| chain!(async_to_generator(), tr(())),
+    |_| chain!(
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+        tr(())
+    ),
     issue_1125_1,
     "
     async function test() {
@@ -1312,7 +1320,10 @@ test!(
 
 test!(
     Syntax::default(),
-    |_| chain!(async_to_generator(), tr(())),
+    |_| chain!(
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+        tr(())
+    ),
     issue_1799_1,
     "
     export default function Foo() {
@@ -1343,7 +1354,7 @@ test!(
     |_| {
         let mark = Mark::fresh(Mark::root());
         chain!(
-            async_to_generator(),
+            async_to_generator(Default::default(), mark),
             es2015::<SingleThreadedComments>(mark, None, Default::default())
         )
     },
@@ -1377,7 +1388,7 @@ test!(
     |_| {
         let mark = Mark::fresh(Mark::root());
         chain!(
-            async_to_generator(),
+            async_to_generator(Default::default(), mark),
             es2016(),
             es2015::<SingleThreadedComments>(mark, None, Default::default()),
         )
@@ -1415,7 +1426,7 @@ test!(
             es2022(es2022::Config { loose: false }),
             es2021(),
             es2018(Default::default()),
-            es2017(),
+            es2017(mark, Default::default()),
             es2016(),
             es2015::<SingleThreadedComments>(mark, None, Default::default()),
         )
@@ -1670,7 +1681,7 @@ test_exec!(
     |_| {
         let mark = Mark::fresh(Mark::root());
         chain!(
-            async_to_generator(),
+            async_to_generator(Default::default(), mark),
             es2015::for_of(Default::default()),
             regenerator(Default::default(), mark)
         )

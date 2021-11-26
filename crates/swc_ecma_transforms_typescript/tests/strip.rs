@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use swc_common::chain;
+use swc_common::{chain, Mark};
 use swc_ecma_parser::{Syntax, TsConfig};
 use swc_ecma_transforms_base::resolver::resolver;
 use swc_ecma_transforms_compat::{
@@ -3153,7 +3153,10 @@ test!(
     Syntax::Typescript(TsConfig {
         ..Default::default()
     }),
-    |_| chain!(tr(), async_to_generator()),
+    |_| chain!(
+        tr(),
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
+    ),
     issue_1235_1,
     "
     class Service {

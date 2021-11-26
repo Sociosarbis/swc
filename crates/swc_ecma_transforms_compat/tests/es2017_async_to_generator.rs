@@ -43,7 +43,7 @@ fn tr() -> impl Fold {
         parameters(),
         destructuring(destructuring::Config { loose: false }),
         function_name(),
-        async_to_generator(),
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
         fixer(None)
     )
 }
@@ -707,7 +707,7 @@ return (new B(20)).print().then(() => console.log('Done'));"
 
 test_exec!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_400_2,
     "class A {
     constructor() {
@@ -737,14 +737,13 @@ return (new B(20)).print().then(() => console.log('Done'));"
 
 test_exec!(
     syntax(),
-    |t| chain!(
-        async_to_generator(),
-        es2015(
-            Mark::fresh(Mark::root()),
-            Some(t.comments.clone()),
-            Default::default()
+    |t| {
+        let mark = Mark::fresh(Mark::root());
+        chain!(
+            async_to_generator(Default::default(), mark),
+            es2015(mark, Some(t.comments.clone()), Default::default())
         )
-    ),
+    },
     issue_400_3,
     "class A {
     constructor() {
@@ -799,7 +798,7 @@ return (new A()).print();"
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     bluebird_coroutines_named_expression,
     r#"
 var foo = async function bar() {
@@ -832,7 +831,7 @@ test!(
     // TODO: Enable this test after implementing es6 module pass.
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     export_async_lone_export,
     r#"
 export async function foo () { }
@@ -862,7 +861,7 @@ function _foo() {
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     bluebird_coroutines_arrow_function,
     r#"
 (async () => { await foo(); })()
@@ -885,7 +884,10 @@ test!(
     // Optimization
     ignore,
     syntax(),
-    |_| chain!(async_to_generator(), arrow()),
+    |_| chain!(
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+        arrow()
+    ),
     regression_t7194,
     r#"
 function f() {
@@ -935,7 +937,10 @@ test!(
     // TODO: Unignore this
     ignore,
     syntax(),
-    |_| chain!(resolver(), async_to_generator()),
+    |_| chain!(
+        resolver(),
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
+    ),
     async_to_generator_shadowed_promise,
     r#"
 let Promise;
@@ -966,7 +971,7 @@ function foo() {
 // async_to_generator_object_method_with_arrows
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_object_method_with_arrows,
     r#"
 class Class {
@@ -1030,7 +1035,7 @@ class Class {
 // async_to_generator_object_method
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_object_method,
     r#"
 let obj = {
@@ -1060,7 +1065,7 @@ let obj = {
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     bluebird_coroutines_class,
     r#"
 class Foo {
@@ -1090,7 +1095,7 @@ test!(
     ignore,
     syntax(),
     |_| chain!(
-        async_to_generator(),
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
         //regenerator(),
         arrow(),
     ),
@@ -1250,7 +1255,7 @@ regeneratorRuntime.mark(function _callee4() {
 // async_to_generator_named_expression
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_named_expression,
     r#"
 var foo = async function bar() {
@@ -1372,7 +1377,7 @@ function () {
 // async_to_generator_async_arrow_in_method
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_async_arrow_in_method,
     r#"
 let TestClass = {
@@ -1405,7 +1410,7 @@ let TestClass = {
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     bluebird_coroutines_statement,
     r#"
 async function foo() {
@@ -1433,7 +1438,7 @@ function foo() {
 test!(
     syntax(),
     |_| chain!(
-        async_to_generator(),
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
         parameters(),
         destructuring(destructuring::Config { loose: false }),
     ),
@@ -1479,7 +1484,7 @@ test!(
     // TODO: Enable this test after implementing es6 module pass.
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     export_async_default_arrow_export,
     r#"
 export default async () => { return await foo(); }
@@ -1507,7 +1512,7 @@ exports.default = _default;
 // async_to_generator_function_arity
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_function_arity,
     r#"
 async function one(a, b = 1) {}
@@ -1579,7 +1584,7 @@ test!(
     // TODO: Implement caching
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_object_method_with_super_caching,
     r#"
 class Foo extends class {} {
@@ -1614,7 +1619,7 @@ test!(
     // TODO: Enable this test after implementing es6 module pass.
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     export_async_default_export,
     r#"
 export default async function myFunc() {}
@@ -1643,7 +1648,7 @@ function _myFunc() {
 // async_to_generator_async
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_async,
     r#"
 class Foo {
@@ -1669,7 +1674,7 @@ class Foo {
 // regression_8783
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     regression_8783,
     r#"
 (async function poll() {
@@ -1697,7 +1702,7 @@ test!(
 // async_to_generator_deeply_nested_asyncs
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_deeply_nested_asyncs,
     r#"
 async function s(x, ...args) {
@@ -1747,7 +1752,7 @@ test!(
     // TODO: Enable this test after implementing es6 module pass.
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     export_async_import_and_export,
     r#"
 import bar from 'bar';
@@ -1782,7 +1787,10 @@ test!(
     // TODO: Unignore this
     ignore,
     syntax(),
-    |_| chain!(resolver(), async_to_generator()),
+    |_| chain!(
+        resolver(),
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
+    ),
     async_to_generator_shadowed_promise_nested,
     r#"
 let Promise;
@@ -1834,7 +1842,7 @@ function foo() {
 // regression_4599
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     regression_4599,
     r#"
 async () => await promise
@@ -1859,7 +1867,7 @@ _asyncToGenerator(function* () {
 // regression_4943_exec
 test_exec!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     regression_4943_exec,
     r#"
 "use strict";
@@ -1882,7 +1890,7 @@ return foo().then(() => {
 // regression_8783_exec
 test_exec!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     regression_8783_exec,
     r#"
 let log = [];
@@ -1907,7 +1915,7 @@ return main.then(() => {
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     bluebird_coroutines_expression,
     r#"
 var foo = async function () {
@@ -1936,7 +1944,7 @@ function () {
 // async_to_generator_expression
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_expression,
     r#"
 var foo = async function () {
@@ -1993,7 +2001,7 @@ function () {
 // async_to_generator_statement
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_statement,
     r#"
 async function foo() {
@@ -2019,7 +2027,10 @@ test!(
     // TODO: Unignore this
     ignore,
     syntax(),
-    |_| chain!(resolver(), async_to_generator()),
+    |_| chain!(
+        resolver(),
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
+    ),
     async_to_generator_shadowed_promise_import,
     r#"
 import Promise from 'somewhere';
@@ -2049,7 +2060,7 @@ function foo() {
 // async_to_generator_parameters
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     async_to_generator_parameters,
     r#"
 async function foo(bar) {
@@ -2073,7 +2084,7 @@ function _foo() {
 // regression_t6882_exec
 test_exec!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     regression_t6882_exec,
     r#"
 foo();
@@ -2086,7 +2097,7 @@ async function foo() {}
 // async_to_generator_parameters
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_600,
     r#"
 async function foo() {
@@ -2109,7 +2120,7 @@ function _foo() {
 
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1036_1,
     "
     const x = async function() {
@@ -2147,7 +2158,7 @@ test!(
 
 test_exec!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1036_2,
     "
     const x = async function() {
@@ -2163,7 +2174,7 @@ test_exec!(
 
 test!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1216_1,
     "
     const source = Math.random() < 2 ? 'matilda' : 'fred';
@@ -2210,7 +2221,7 @@ test!(
 
 test!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1125_1,
     "
 async function test() {
@@ -2243,7 +2254,7 @@ test()
 
 test!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1341_1,
     "
     class A {
@@ -2279,7 +2290,7 @@ test_exec!(
     Syntax::default(),
     |_| chain!(
         class_properties(class_properties::Config { loose: false }),
-        async_to_generator()
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
     ),
     issue_1341_1_exec,
     "
@@ -2301,7 +2312,7 @@ test_exec!(
 
 test!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1341_2,
     "
   class A {
@@ -2329,7 +2340,7 @@ test_exec!(
     Syntax::default(),
     |_| chain!(
         class_properties(class_properties::Config { loose: false }),
-        async_to_generator()
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
     ),
     issue_1341_2_exec,
     "
@@ -2347,7 +2358,7 @@ test_exec!(
 
 test!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1455_1,
     "
     const obj = {
@@ -2390,7 +2401,7 @@ test!(
 
 test_exec!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1575_1,
     "
   const obj = {
@@ -2407,7 +2418,10 @@ test_exec!(
     Syntax::default(),
     |_| {
         let mark = Mark::fresh(Mark::root());
-        chain!(async_to_generator(), regenerator(Default::default(), mark))
+        chain!(
+            async_to_generator(Default::default(), mark),
+            regenerator(Default::default(), mark)
+        )
     },
     issue_1575_2,
     "
@@ -2423,7 +2437,7 @@ test_exec!(
 
 test!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1722_1,
     "
     (async function main() {
@@ -2447,7 +2461,7 @@ test!(
 
 test!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1721_1,
     "
     async function main() {
@@ -2494,7 +2508,7 @@ test!(
 
 test!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1721_2_async_generator,
     "
     async function* lol() {
@@ -2518,7 +2532,7 @@ test!(
 
 test!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1684_1,
     "
     const cache = {}
@@ -2557,7 +2571,7 @@ test!(
     |_| {
         let top_level_mark = Mark::fresh(Mark::root());
         chain!(
-            async_to_generator(),
+            async_to_generator(Default::default(), top_level_mark),
             regenerator(Default::default(), top_level_mark)
         )
     },
@@ -2616,7 +2630,7 @@ test!(
 
 test_exec!(
     syntax(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1752_1,
     "
     async function* generate() {
@@ -2644,7 +2658,7 @@ test_exec!(
 
 test_exec!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_1918_1,
     "
     let counter = 0;
@@ -2684,7 +2698,7 @@ test_exec!(
 
 test_exec!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_2402_1,
     "
 function MyClass(item) {
@@ -2708,7 +2722,7 @@ test!(
     |_| {
         let top_level_mark = Mark::fresh(Mark::root());
         chain!(
-            async_to_generator(),
+            async_to_generator(Default::default(), top_level_mark),
             regenerator(Default::default(), top_level_mark)
         )
     },
@@ -2765,7 +2779,7 @@ tmp.fun().then((res)=>{
 
 test_exec!(
     Syntax::default(),
-    |_| async_to_generator(),
+    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
     issue_2305_1,
     "
     function MyClass () {}
@@ -2800,7 +2814,7 @@ test!(
     |_| {
         let top_level_mark = Mark::fresh(Mark::root());
         chain!(
-            async_to_generator(),
+            async_to_generator(Default::default(), top_level_mark),
             regenerator(Default::default(), top_level_mark)
         )
     },
@@ -2875,7 +2889,7 @@ test!(
     |_| {
         let top_level_mark = Mark::fresh(Mark::root());
         chain!(
-            async_to_generator(),
+            async_to_generator(Default::default(), top_level_mark),
             regenerator(Default::default(), top_level_mark)
         )
     },
@@ -2953,7 +2967,7 @@ test!(
     |_| {
         let top_level_mark = Mark::fresh(Mark::root());
         chain!(
-            async_to_generator(),
+            async_to_generator(Default::default(), top_level_mark),
             regenerator(Default::default(), top_level_mark)
         )
     },
@@ -3007,7 +3021,11 @@ export default async function() {
 #[testing::fixture("tests/fixture/async-to-generator/**/exec.js")]
 fn exec(input: PathBuf) {
     let input = read_to_string(&input).unwrap();
-    compare_stdout(Default::default(), |_| async_to_generator(), &input);
+    compare_stdout(
+        Default::default(),
+        |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+        &input,
+    );
 }
 
 #[testing::fixture("tests/fixture/async-to-generator/**/exec.js")]
@@ -3019,7 +3037,7 @@ fn exec_regenerator(input: PathBuf) {
             let top_level_mark = Mark::fresh(Mark::root());
 
             chain!(
-                async_to_generator(),
+                async_to_generator(Default::default(), top_level_mark),
                 es2015::for_of(Default::default()),
                 regenerator(Default::default(), top_level_mark)
             )

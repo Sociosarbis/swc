@@ -1,7 +1,7 @@
 #![allow(deprecated)]
 
 use std::{fs::read_to_string, path::PathBuf};
-use swc_common::chain;
+use swc_common::{chain, Mark};
 use swc_ecma_parser::{EsConfig, Syntax, TsConfig};
 use swc_ecma_transforms_base::resolver::resolver;
 use swc_ecma_transforms_compat::{
@@ -2910,7 +2910,7 @@ test!(
     syntax(),
     |_| chain!(
         class_properties(class_properties::Config { loose: false }),
-        async_to_generator()
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
     ),
     public_regression_t7364,
     r#"
@@ -3443,7 +3443,7 @@ test!(
     syntax(),
     |_| chain!(
         class_properties(class_properties::Config { loose: false }),
-        async_to_generator(),
+        async_to_generator(Default::default(), Mark::fresh(Mark::root())),
         block_scoping()
     ),
     private_regression_t7364,
@@ -5222,7 +5222,7 @@ test!(
     syntax(),
     |_| chain!(
         class_properties(class_properties::Config { loose: false }),
-        async_to_generator()
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
     ),
     issue_1694_1,
     "
@@ -5253,7 +5253,7 @@ test!(
     syntax(),
     |_| chain!(
         class_properties(class_properties::Config { loose: false }),
-        async_to_generator()
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
     ),
     issue_1694_2,
     "
@@ -5282,7 +5282,7 @@ test!(
     syntax(),
     |_| chain!(
         class_properties(class_properties::Config { loose: false }),
-        async_to_generator()
+        async_to_generator(Default::default(), Mark::fresh(Mark::root()))
     ),
     issue_1702_1,
     "
