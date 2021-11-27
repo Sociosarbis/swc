@@ -85,14 +85,18 @@ impl VisitMut for AsyncToGenerator {
         m.visit_mut_children_with(self);
 
         if self.async_to_generator_used {
-            prepend(&mut m.body, self.require_custom_rt());
+            if let Some(_) = &self.async_to_generator_runtime {
+                prepend(&mut m.body, self.require_custom_rt());
+            }
         }
     }
 
     fn visit_mut_module(&mut self, m: &mut Module) {
         m.visit_mut_children_with(self);
         if self.async_to_generator_used {
-            prepend(&mut m.body, self.import_custom_rt());
+            if let Some(_) = &self.async_to_generator_runtime {
+                prepend(&mut m.body, self.import_custom_rt());
+            }
         }
     }
 

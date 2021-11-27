@@ -7,7 +7,7 @@ use swc_ecma_transforms_base::{fixer::fixer, resolver::resolver};
 use swc_ecma_transforms_compat::{
     es2015,
     es2015::{arrow, destructuring, function_name, parameters},
-    es2017::async_to_generator,
+    es2017::{async_to_generator, AsyncToGeneratorConfig},
     es2022::class_properties,
 };
 use swc_ecma_transforms_testing::{compare_stdout, test, test_exec};
@@ -798,7 +798,13 @@ return (new A()).print();"
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+    |_| async_to_generator(
+        AsyncToGeneratorConfig {
+            module: "bluebird".to_string(),
+            method: "coroutine".to_string()
+        },
+        Mark::fresh(Mark::root())
+    ),
     bluebird_coroutines_named_expression,
     r#"
 var foo = async function bar() {
@@ -807,7 +813,7 @@ var foo = async function bar() {
 
 "#,
     r#"
-var _coroutine = require("bluebird").coroutine;
+import { coroutine as _coroutine } from "bluebird";
 
 var foo =
 /*#__PURE__*/
@@ -861,14 +867,20 @@ function _foo() {
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+    |_| async_to_generator(
+        AsyncToGeneratorConfig {
+            module: "bluebird".to_string(),
+            method: "coroutine".to_string()
+        },
+        Mark::fresh(Mark::root())
+    ),
     bluebird_coroutines_arrow_function,
     r#"
 (async () => { await foo(); })()
 
 "#,
     r#"
-var _coroutine = require("bluebird").coroutine;
+import { coroutine as _coroutine } from "bluebird";
 
 _coroutine(function* () {
   yield foo();
@@ -1065,7 +1077,13 @@ let obj = {
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+    |_| async_to_generator(
+        AsyncToGeneratorConfig {
+            module: "bluebird".to_string(),
+            method: "coroutine".to_string()
+        },
+        Mark::fresh(Mark::root())
+    ),
     bluebird_coroutines_class,
     r#"
 class Foo {
@@ -1076,7 +1094,7 @@ class Foo {
 
 "#,
     r#"
-var _coroutine = require("bluebird").coroutine;
+import { coroutine as _coroutine } from "bluebird";
 
 class Foo {
   foo() {
@@ -1410,7 +1428,13 @@ let TestClass = {
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+    |_| async_to_generator(
+        AsyncToGeneratorConfig {
+            module: "bluebird".to_string(),
+            method: "coroutine".to_string()
+        },
+        Mark::fresh(Mark::root())
+    ),
     bluebird_coroutines_statement,
     r#"
 async function foo() {
@@ -1419,16 +1443,15 @@ async function foo() {
 
 "#,
     r#"
-var _coroutine = require("bluebird").coroutine;
+import { coroutine as _coroutine } from "bluebird";
 
+function foo() {
+  return _foo.apply(this, arguments);
+}
 function _foo() {
   _foo = _coroutine(function* () {
     var wat = yield bar();
   });
-  return _foo.apply(this, arguments);
-}
-
-function foo() {
   return _foo.apply(this, arguments);
 }
 "#
@@ -1915,7 +1938,13 @@ return main.then(() => {
 test!(
     ignore,
     syntax(),
-    |_| async_to_generator(Default::default(), Mark::fresh(Mark::root())),
+    |_| async_to_generator(
+        AsyncToGeneratorConfig {
+            module: "bluebird".to_string(),
+            method: "coroutine".to_string()
+        },
+        Mark::fresh(Mark::root())
+    ),
     bluebird_coroutines_expression,
     r#"
 var foo = async function () {
@@ -1924,7 +1953,7 @@ var foo = async function () {
 
 "#,
     r#"
-var _coroutine = require("bluebird").coroutine;
+import { coroutine as _coroutine } from "bluebird";
 
 var foo =
 /*#__PURE__*/
@@ -1933,7 +1962,7 @@ function () {
     var wat = yield bar();
   });
 
-  return function foo() {
+  return function() {
     return _ref.apply(this, arguments);
   };
 }();
