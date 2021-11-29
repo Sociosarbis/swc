@@ -29,6 +29,16 @@ export function plugins(ps: Plugin[]): Plugin {
   };
 }
 
+
+const normalizeParseOptions = (options?: Partial<ParseOptions>): ParseOptions => ({ syntax: 'ecmascript', ...options })
+const normalizeTransformOptions = (options?: Partial<Options>) => ({
+  ...options,
+  jsc: {
+    parser: normalizeParseOptions(options?.jsc),
+    ...options?.jsc
+  }
+})
+
 export class Compiler {
 
   async minify(src: string, opts?: JsMinifyOptions): Promise<Output> {
@@ -45,8 +55,7 @@ export class Compiler {
   ): Promise<Script>;
   parse(src: string, options?: ParseOptions, filename?: string): Promise<Module>;
   async parse(src: string, options?: ParseOptions, filename?: string): Promise<Program> {
-    options = options || { syntax: "ecmascript" };
-    options.syntax = options.syntax || "ecmascript";
+    options = normalizeParseOptions(options);
 
     const res = await bindings.parse(src, toBuffer(options), filename);
     return JSON.parse(res);
@@ -55,8 +64,7 @@ export class Compiler {
   parseSync(src: string, options: ParseOptions & { isModule: false }): Script;
   parseSync(src: string, options?: ParseOptions, filename?: string): Module;
   parseSync(src: string, options?: ParseOptions, filename?: string): Program {
-    options = options || { syntax: "ecmascript" };
-    options.syntax = options.syntax || "ecmascript";
+    options = normalizeParseOptions(options);
 
     return JSON.parse(bindings.parseSync(src, toBuffer(options), filename));
   }
@@ -67,8 +75,7 @@ export class Compiler {
   ): Promise<Script>;
   parseFile(path: string, options?: ParseOptions): Promise<Module>;
   async parseFile(path: string, options?: ParseOptions): Promise<Program> {
-    options = options || { syntax: "ecmascript" };
-    options.syntax = options.syntax || "ecmascript";
+    options = normalizeParseOptions(options);
 
     const res = await bindings.parseFile(path, toBuffer(options));
 
@@ -81,8 +88,7 @@ export class Compiler {
   ): Script;
   parseFileSync(path: string, options?: ParseOptions): Module;
   parseFileSync(path: string, options?: ParseOptions): Program {
-    options = options || { syntax: "ecmascript" };
-    options.syntax = options.syntax || "ecmascript";
+    options = normalizeParseOptions(options);
 
     return JSON.parse(bindings.parseFileSync(path, toBuffer(options)));
   }
@@ -109,11 +115,7 @@ export class Compiler {
 
   async transform(src: string | Program, options?: Options): Promise<Output> {
     const isModule = typeof src !== "string";
-    options = options || {};
-
-    if (options?.jsc?.parser) {
-      options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript';
-    }
+    options = normalizeTransformOptions(options)
 
 
     const { plugin, ...newOptions } = options;
@@ -121,7 +123,7 @@ export class Compiler {
     if (plugin) {
       const m =
         typeof src === "string"
-          ? await this.parse(src, options?.jsc?.parser, options.filename)
+          ? await this.parse(src, Object.assign({ isModule: options.isModule }, options.jsc!.parser!), options.filename)
           : src;
       return this.transform(plugin(m), newOptions);
     }
@@ -131,18 +133,14 @@ export class Compiler {
 
   transformSync(src: string | Program, options?: Options): Output {
     const isModule = typeof src !== "string";
-    options = options || {};
-
-    if (options?.jsc?.parser) {
-      options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript';
-    }
+    options = normalizeTransformOptions(options);
 
 
     const { plugin, ...newOptions } = options;
 
     if (plugin) {
       const m =
-        typeof src === "string" ? this.parseSync(src, options?.jsc?.parser, options.filename) : src;
+        typeof src === "string" ? this.parseSync(src, Object.assign({ isModule: options.isModule }, options.jsc!.parser!), options.filename) : src;
       return this.transformSync(plugin(m), newOptions);
     }
 
@@ -154,17 +152,13 @@ export class Compiler {
   }
 
   async transformFile(path: string, options?: Options): Promise<Output> {
-    options = options || {};
-
-    if (options?.jsc?.parser) {
-      options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript';
-    }
+    options = normalizeTransformOptions(options);
 
     const { plugin, ...newOptions } = options;
     newOptions.filename = path;
 
     if (plugin) {
-      const m = await this.parseFile(path, options?.jsc?.parser);
+      const m = await this.parseFile(path, Object.assign({ isModule: options.isModule }, options.jsc!.parser!));
       return this.transform(plugin(m), newOptions);
     }
 
@@ -172,18 +166,14 @@ export class Compiler {
   }
 
   transformFileSync(path: string, options?: Options): Output {
-    options = options || {};
-
-    if (options?.jsc?.parser) {
-      options.jsc.parser.syntax = options.jsc.parser.syntax ?? 'ecmascript';
-    }
+    options = normalizeTransformOptions(options);
 
 
     const { plugin, ...newOptions } = options;
     newOptions.filename = path;
 
     if (plugin) {
-      const m = this.parseFileSync(path, options?.jsc?.parser);
+      const m = this.parseFileSync(path, Object.assign({ isModule: options.isModule }, options.jsc!.parser!));
       return this.transformSync(plugin(m), newOptions);
     }
 
